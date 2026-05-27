@@ -228,7 +228,7 @@
     color: var(--green-dark); padding: 2px 8px; border-radius: 20px; font-weight: 700;
   }
   .dots-wrap { display: flex; gap: 3px; flex-wrap: wrap; }
-  .daycol { text-align: center; flex: 0 0 calc(100%/14 - 3px); min-width: 0; }
+  .daycol { text-align: center; flex: 0 0 calc(100%/7 - 3px); min-width: 0; }
   .dot {
     width: 100%; padding: 2px 0; border-radius: 3px; font-size: 9px;
     display: flex; align-items: center; justify-content: center; margin-bottom: 2px;
@@ -390,7 +390,7 @@
         <div class="week-chip" id="week-disp"></div>
       </div>
     </div>
-    <h2>来週のご飯</h2>
+    <h2>今週のご飯</h2>
     <p class="sub">名前を選んで食べる日を入力してください</p>
     <div class="user-grid" id="home-grid">
       <div class="loading" style="grid-column:1/-1;"><div class="spinner"></div>読み込み中...</div>
@@ -516,8 +516,8 @@ function getMonday(d) {
 
 function getPeriodDates(offset = 0) {
   const mon = getMonday(new Date());
-  mon.setDate(mon.getDate() + offset * 14);
-  return Array.from({ length: 14 }, (_, i) => {
+  mon.setDate(mon.getDate() + offset * 7);
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mon);
     d.setDate(mon.getDate() + i);
     return d;
@@ -540,13 +540,27 @@ function dateLabelLong(d) {
 }
 
 function periodLabel(dates) {
-  const s = dates[0], e = dates[13];
+  const s = dates[0], e = dates[6];
   return `${s.getMonth()+1}/${s.getDate()} 〜 ${e.getMonth()+1}/${e.getDate()}`;
 }
 
 function isPast(d) {
   const today = new Date(); today.setHours(0,0,0,0);
   return d < today;
+}
+
+function isDefaultBlocked(dateK, meal) {
+  const dow = new Date(dateK + 'T00:00:00').getDay();
+  if (dow === 1) return true;                   // Monday: 朝 and 夕
+  if (dow === 0 && meal === '夕') return true;  // Sunday: 夕 only
+  return false;
+}
+
+function isEffectivelyBlocked(dateK, meal) {
+  if (blackout[dateK] !== undefined && blackout[dateK][meal] !== undefined) {
+    return !!blackout[dateK][meal];
+  }
+  return isDefaultBlocked(dateK, meal);
 }
 
 function escHtml(s) {
@@ -605,13 +619,18 @@ async function fbSaveUserPeriod(userName, data, dates) {
 }
 
 async function fbToggleBlackout(dateK, meal) {
-  blackout[dateK] = blackout[dateK] || {};
-  blackout[dateK][meal] = !blackout[dateK][meal];
-  if (!blackout[dateK]['朝'] && !blackout[dateK]['夕']) {
+  const current = isEffectivelyBlocked(dateK, meal);
+  if (!blackout[dateK]) blackout[dateK] = {};
+  blackout[dateK][meal] = !current;
+  const aVal = blackout[dateK]['朝'] !== undefined ? blackout[dateK]['朝'] : isDefaultBlocked(dateK, '朝');
+  const dVal = blackout[dateK]['夕'] !== undefined ? blackout[dateK]['夕'] : isDefaultBlocked(dateK, '夕');
+  if (!aVal && !dVal && !isDefaultBlocked(dateK, '朝') && !isDefaultBlocked(dateK, '夕')) {
     delete blackout[dateK];
     await remove(ref(db, `config/blackout/${dateK}`));
   } else {
-    await set(ref(db, `config/blackout/${dateK}`), blackout[dateK]);
+    const toSave = { 朝: aVal, 夕: dVal };
+    blackout[dateK] = toSave;
+    await set(ref(db, `config/blackout/${dateK}`), toSave);
   }
 }
 
@@ -752,10 +771,10 @@ function openInput(user, dates) {
     if (allData[user.name]?.[k]) {
       tmp[k] = { ...allData[user.name][k] };
     } else {
-      tmp[k] = { 朝: !blackout[k]?.['朝'], 夕: !blackout[k]?.['夕'] };
+      tmp[k] = { 朝: !isEffectivelyBlocked(k, '朝'), 夕: !isEffectivelyBlocked(k, '夕') };
     }
-    if (blackout[k]?.['朝']) tmp[k]['朝'] = false;
-    if (blackout[k]?.['夕']) tmp[k]['夕'] = false;
+    if (isEffectivelyBlocked(k, '朝')) tmp[k]['朝'] = false;
+    if (isEffectivelyBlocked(k, '夕')) tmp[k]['夕'] = false;
   });
 
   document.getElementById('in-name').textContent = user.name + 'さん';
@@ -773,8 +792,8 @@ function renderDayRows() {
   curDates.forEach(d => {
     const k    = dateKey(d);
     const past = isPast(d);
-    const boA  = !!blackout[k]?.['朝'];
-    const boD  = !!blackout[k]?.['夕'];
+    const boA  = isEffectivelyBlocked(k, '朝');
+    const boD  = isEffectivelyBlocked(k, '夕');
     const allBo = boA && boD;
 
     const card = document.createElement('div');
@@ -830,14 +849,11 @@ window.setM = function(k, meal, val) {
 
 window.qset = function(type, val) {
   curDates.forEach(d => {
-    const k   = dateKey(d);
+    const k = dateKey(d);
     if (isPast(d)) return;
-    const boA = !!blackout[k]?.['朝'];
-    const boD = !!blackout[k]?.['夕'];
     const meals = type === 'all' ? MEALS : type === 'b' ? ['朝'] : ['夕'];
     meals.forEach(m => {
-      const isBo = m === '朝' ? boA : boD;
-      if (!isBo) setM(k, m, val);
+      if (!isEffectivelyBlocked(k, m)) setM(k, m, val);
     });
   });
 };
@@ -887,7 +903,7 @@ async function renderChef() {
     const c = (dc[k]['朝'] || 0) + (dc[k]['夕'] || 0);
     if (c > maxD.cnt) maxD = { label: dateLabel(d), cnt: c };
   });
-  const pct = responded > 0 ? Math.round(total / (responded * 14 * 2) * 100) : 0;
+  const pct = responded > 0 ? Math.round(total / (responded * 7 * 2) * 100) : 0;
 
   sg.innerHTML = `
     <div class="stat"><div class="stat-n">${responded}<span>/${USERS.length}</span></div><div class="stat-l">入力済み</div></div>
@@ -905,8 +921,8 @@ function renderBoGrid(dates) {
   grid.innerHTML = dates.map(d => {
     const k    = dateKey(d);
     const past = isPast(d);
-    const boA  = !!blackout[k]?.['朝'];
-    const boD  = !!blackout[k]?.['夕'];
+    const boA  = isEffectivelyBlocked(k, '朝');
+    const boD  = isEffectivelyBlocked(k, '夕');
     return `<div class="bo-cell${past ? ' past' : ''}">
       <div class="bo-date">${d.getMonth()+1}/${d.getDate()}</div>
       <div class="bo-day">${DAY_JA[d.getDay()]}</div>
@@ -922,8 +938,7 @@ window.toggleBo = async function(k, meal) {
   await fbToggleBlackout(k, meal);
   const dates = getPeriodDates(chefOffset);
   renderBoGrid(dates);
-  const state = blackout[k]?.[meal] ? '提供不可' : '提供可';
-  toast(`${k} の${meal}食を${state}にしました`);
+  toast(`${k} の${meal}食を${isEffectivelyBlocked(k, meal) ? '提供不可' : '提供可'}にしました`);
 };
 
 window.toggleBoSection = function() {
@@ -945,8 +960,8 @@ function renderChefTabs(dates) {
         const b   = dc[k]?.['朝'] ?? 0;
         const di  = dc[k]?.['夕'] ?? 0;
         const tot = b + di;
-        const boA = !!blackout[k]?.['朝'];
-        const boD = !!blackout[k]?.['夕'];
+        const boA = isEffectivelyBlocked(k, '朝');
+        const boD = isEffectivelyBlocked(k, '夕');
         return `<tr>
           <td>${DAY_JA[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}</td>
           <td class="${boA ? '' : cls(b)}">${boA ? '<span class="bo-cell-tbl">🚫</span>' : b + '人'}</td>
@@ -968,8 +983,8 @@ function renderChefTabs(dates) {
 
     const dots = dates.map(d => {
       const k   = dateKey(d);
-      const boA = !!blackout[k]?.['朝'];
-      const boD = !!blackout[k]?.['夕'];
+      const boA = isEffectivelyBlocked(k, '朝');
+      const boD = isEffectivelyBlocked(k, '夕');
       const hasB = sel[k]?.['朝'];
       const hasD = sel[k]?.['夕'];
       return `<div class="daycol">
@@ -1028,7 +1043,7 @@ window.exportCSV = function(type) {
     USERS.forEach(u => {
       const sel = allData[u.name];
       if (!sel) {
-        csv += `${u.name},${Array(28).fill('-').join(',')},0\n`;
+        csv += `${u.name},${Array(14).fill('-').join(',')},0\n`;
       } else {
         const cols = dates.flatMap(d => {
           const k = dateKey(d);
