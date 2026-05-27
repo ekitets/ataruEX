@@ -390,7 +390,7 @@
         <div class="week-chip" id="week-disp"></div>
       </div>
     </div>
-    <h2>今週のご飯</h2>
+    <h2>来週のご飯</h2>
     <p class="sub">名前を選んで食べる日を入力してください</p>
     <div class="user-grid" id="home-grid">
       <div class="loading" style="grid-column:1/-1;"><div class="spinner"></div>読み込み中...</div>
@@ -481,22 +481,22 @@ const firebaseConfig = {
   appId: "1:922263738558:web:2aebe7054ddaefdcc726ef"
 };
 
-const DAY_JA        = ['日','月','火','水','木','金','土'];
-const MEALS         = ['朝','夕'];
-const AV            = ['av0','av1','av2','av3','av4','av5','av6'];
+const DAY_JA       = ['日','月','火','水','木','金','土'];
+const MEALS        = ['朝','夕'];
+const AV           = ['av0','av1','av2','av3','av4','av5','av6'];
 const DEFAULT_USERS = ['下田','吉田','鈴木','小野','岸本','黒田','宇田川'];
 
 let app, db;
 let USERS      = [];
 let curUser    = null;
 let curAvCls   = '';
-let tmp        = {};
-let curDates   = [];
-let allData    = {};
-let blackout   = {};
-let chefOffset = 0;
+let tmp        = {};       // {dateKey: {朝:bool,夕:bool}} for current input
+let curDates   = [];       // 7 Date objects for current input period
+let allData    = {};       // {userName: {dateKey: {朝:bool,夕:bool}}}
+let blackout   = {};       // {dateKey: {朝:bool,夕:bool}} true = blocked
+let chefOffset = 0;        // period offset for chef screen
 let activeTab  = 's';
-let dc         = {};
+let dc         = {};       // day counts for CSV
 
 const configOK = firebaseConfig.apiKey !== 'YOUR_API_KEY';
 
@@ -527,8 +527,8 @@ function getPeriodDates(offset = 0) {
 }
 
 function dateKey(d) {
-  const y   = d.getFullYear();
-  const m   = String(d.getMonth() + 1).padStart(2, '0');
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
@@ -588,6 +588,7 @@ window.go = go;
 async function fbLoadPeriod(dates) {
   if (!configOK) return {};
   const keys = dates.map(dateKey);
+  // Load all users' data
   const result = {};
   try {
     const snap = await get(ref(db, 'meals'));
@@ -596,7 +597,9 @@ async function fbLoadPeriod(dates) {
       const uname = userSnap.key;
       const udata = userSnap.val();
       result[uname] = {};
-      keys.forEach(k => { if (udata[k]) result[uname][k] = udata[k]; });
+      keys.forEach(k => {
+        if (udata[k]) result[uname][k] = udata[k];
+      });
     });
   } catch(e) { /* ignore */ }
   return result;
@@ -640,16 +643,18 @@ async function fbDeletePeriod(dates) {
   if (!configOK) return;
   const updates = {};
   USERS.forEach(u => {
-    dates.forEach(d => { updates[`meals/${u.name}/${dateKey(d)}`] = null; });
+    dates.forEach(d => {
+      updates[`meals/${u.name}/${dateKey(d)}`] = null;
+    });
   });
   await update(ref(db), updates);
 }
 
-async function fbSaveLog(userName, type, weekStart) {
+async function fbSaveLog(userName, type, weekStart, mealData) {
   if (!configOK) return;
   const ts  = Date.now();
   const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  await set(ref(db, `logs/${userName}/${ts}`), { type, weekStart, savedAt: now });
+  await set(ref(db, `logs/${userName}/${ts}`), { type, weekStart, savedAt: now, meals: mealData });
 }
 
 async function fbLoadLogs() {
@@ -660,7 +665,7 @@ async function fbLoadLogs() {
   } catch(e) { return {}; }
 }
 
-// ---- User management ----
+// ---- User management (Firebase) ----
 
 async function loadUsers() {
   if (!configOK) {
@@ -670,7 +675,8 @@ async function loadUsers() {
   try {
     const snap = await get(ref(db, 'config/users'));
     if (snap.exists()) {
-      USERS = Object.entries(snap.val()).map(([name, av]) => ({ name, av }));
+      const data = snap.val();
+      USERS = Object.entries(data).map(([name, av]) => ({ name, av }));
     } else {
       USERS = DEFAULT_USERS.map((n, i) => ({ name: n, av: i }));
       await persistUsers();
@@ -744,7 +750,7 @@ window.deleteUserByName = async function(name) {
 // ---- Home ----
 
 async function renderHome() {
-  const inputDates = getPeriodDates(0);
+  const inputDates = getPeriodDates(0); // always show current week for input
   document.getElementById('week-disp').textContent = periodLabel(inputDates);
 
   if (!configOK) {
@@ -778,9 +784,9 @@ async function renderHome() {
 // ---- Input ----
 
 function openInput(user, dates) {
-  curUser  = user.name;
-  curAvCls = AV[user.av % AV.length];
-  curDates = dates;
+  curUser    = user.name;
+  curAvCls   = AV[user.av % AV.length];
+  curDates   = dates;
 
   tmp = {};
   dates.forEach(d => {
@@ -818,8 +824,7 @@ function renderDayRows() {
 
     const hasB    = tmp[k]?.['朝'];
     const hasD    = tmp[k]?.['夕'];
-    const sumText = allBo ? '提供なし'
-      : [hasB?'朝食':'', hasD?'夕食':''].filter(Boolean).join('・') || 'なし';
+    const sumText = (allBo ? '提供なし' : [hasB?'朝食':'', hasD?'夕食':''].filter(Boolean).join('・') || 'なし');
 
     let body = `<div class="day-head">${escHtml(dateLabelLong(d))}<span class="day-summary">${escHtml(sumText)}</span></div>`;
 
@@ -858,6 +863,7 @@ window.setM = function(k, meal, val) {
   tmp[k][meal] = val;
   document.getElementById(`b-${k}-${meal}-y`).className = 'tb' + (val ? ' yes' : '');
   document.getElementById(`b-${k}-${meal}-n`).className = 'tb' + (!val ? ' no' : '');
+  // update summary
   const hasB = tmp[k]['朝'], hasD = tmp[k]['夕'];
   const sumText = [hasB?'朝食':'', hasD?'夕食':''].filter(Boolean).join('・') || 'なし';
   const card = document.getElementById(`b-${k}-${meal}-y`)?.closest('.day-card');
@@ -879,7 +885,7 @@ window.saveUser = async function() {
   const hasExisting = curDates.some(d => allData[curUser]?.[dateKey(d)] !== undefined);
   const logType = hasExisting ? 'update' : 'initial';
   await fbSaveUserPeriod(curUser, tmp, curDates);
-  await fbSaveLog(curUser, logType, dateKey(curDates[0]));
+  await fbSaveLog(curUser, logType, dateKey(curDates[0]), tmp);
   if (!allData[curUser]) allData[curUser] = {};
   curDates.forEach(d => { allData[curUser][dateKey(d)] = tmp[dateKey(d)]; });
   toast(logType === 'initial' ? '初回保存しました ✓' : '更新しました ✓');
@@ -914,7 +920,9 @@ async function renderChef() {
     if (!sel) return;
     dates.forEach(d => {
       const k = dateKey(d);
-      MEALS.forEach(m => { if (sel[k]?.[m]) { dc[k][m]++; total++; } });
+      MEALS.forEach(m => {
+        if (sel[k]?.[m]) { dc[k][m]++; total++; }
+      });
     });
   });
 
@@ -1046,18 +1054,44 @@ function renderLogTab(logs) {
   document.getElementById('tab-l-content').innerHTML =
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">' +
     recent.map((e, i) => {
-      const u     = USERS.find(u => u.name === e.userName);
-      const avCls = u ? AV[u.av % AV.length] : 'av0';
-      const badge = e.type === 'initial'
+      const u       = USERS.find(u => u.name === e.userName);
+      const avCls   = u ? AV[u.av % AV.length] : 'av0';
+      const isFirst = e.type === 'initial';
+      const badge   = isFirst
         ? '<span style="font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;background:var(--green-light);color:var(--green-dark);">初回保存</span>'
         : '<span style="font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;background:#EBF3FD;color:#185FA5;">更新</span>';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;${i > 0 ? 'border-top:1px solid var(--border);' : ''}">
-        <div class="av ${avCls}" style="width:30px;height:30px;font-size:12px;flex-shrink:0;">${escHtml(e.userName[0])}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:500;">${escHtml(e.userName)}</div>
-          <div style="font-size:11px;color:var(--text-hint);margin-top:1px;">${e.savedAt} &nbsp;·&nbsp; ${e.weekStart}〜の週</div>
+
+      let mealsHtml = '';
+      if (e.meals) {
+        const startDate = new Date(e.weekStart + 'T00:00:00');
+        const weekDates = Array.from({length: 7}, (_, idx) => {
+          const d = new Date(startDate);
+          d.setDate(startDate.getDate() + idx);
+          return d;
+        });
+        const dots = weekDates.map(d => {
+          const k    = dateKey(d);
+          const hasB = e.meals[k]?.['朝'];
+          const hasD = e.meals[k]?.['夕'];
+          return `<div class="daycol">
+            <div class="dot ${hasB ? 'dy' : 'dn'}">朝</div>
+            <div class="dot ${hasD ? 'dy' : 'dn'}">夕</div>
+            <div class="dlbl">${d.getMonth()+1}/${d.getDate()}</div>
+          </div>`;
+        }).join('');
+        mealsHtml = `<div class="dots-wrap" style="margin-top:8px;">${dots}</div>`;
+      }
+
+      return `<div style="padding:10px 14px;${i > 0 ? 'border-top:1px solid var(--border);' : ''}">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="av ${avCls}" style="width:30px;height:30px;font-size:12px;flex-shrink:0;">${escHtml(e.userName[0])}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:500;">${escHtml(e.userName)}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:1px;">${e.savedAt} &nbsp;·&nbsp; ${e.weekStart}〜の週</div>
+          </div>
+          ${badge}
         </div>
-        ${badge}
+        ${mealsHtml}
       </div>`;
     }).join('') + '</div>';
 }
