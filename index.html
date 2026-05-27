@@ -11,6 +11,8 @@
     --green: #1D9E75;
     --green-light: #E1F5EE;
     --green-dark: #0F6E56;
+    --red: #e53935;
+    --red-light: #FEECEC;
     --text: #1a1a1a;
     --text-sub: #666;
     --text-hint: #aaa;
@@ -82,6 +84,7 @@
   .av0{background:#EEEDFE;color:#3C3489;} .av1{background:#E1F5EE;color:#085041;}
   .av2{background:#FAECE7;color:#712B13;} .av3{background:#FBEAF0;color:#72243E;}
   .av4{background:#E6F1FB;color:#0C447C;} .av5{background:#EAF3DE;color:#27500A;}
+  .av6{background:#FEF3CD;color:#7A5C00;}
   .uname { font-size: 14px; font-weight: 500; }
   .done-chip {
     margin-left: auto; font-size: 11px; background: var(--green-light);
@@ -131,6 +134,8 @@
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); margin-bottom: 7px; overflow: hidden;
   }
+  .day-card.past { opacity: 0.55; }
+  .day-card.all-blocked { background: #fafafa; }
   .day-head {
     padding: 9px 14px; font-size: 13px; font-weight: 700;
     background: var(--surface2); border-bottom: 1px solid var(--border);
@@ -148,6 +153,17 @@
   }
   .tb.yes { background: var(--green); border-color: var(--green); color: #fff; font-weight: 500; }
   .tb.no  { background: var(--surface2); color: var(--text-hint); }
+  .blocked-label {
+    font-size: 11px; color: var(--red); background: var(--red-light);
+    padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+  }
+  .blocked-all-msg {
+    padding: 12px 14px; font-size: 13px; color: var(--red);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .past-readonly {
+    padding: 9px 14px; font-size: 13px; color: var(--text-hint);
+  }
 
   /* Chef screen */
   .stat-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 1.25rem; }
@@ -159,9 +175,21 @@
   .stat-n span { font-size: 14px; font-weight: 400; color: var(--text-hint); }
   .stat-l { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
 
-  .chef-actions {
-    display: flex; gap: 8px; margin-bottom: 1rem;
+  .chef-actions { display: flex; gap: 8px; margin-bottom: 1rem; }
+
+  /* Period nav */
+  .period-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px 12px; margin-bottom: 1rem;
   }
+  .nav-btn {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 4px 12px; cursor: pointer; font-size: 16px; font-family: inherit;
+    transition: all .12s; color: var(--text-sub);
+  }
+  .nav-btn:hover { border-color: var(--border-hover); color: var(--text); }
+  .period-label { font-size: 13px; font-weight: 700; color: var(--text); }
 
   .tab-row { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
   .tab {
@@ -185,6 +213,7 @@
   .hi { color: var(--green-dark); font-weight: 700; }
   .mid { color: #185FA5; }
   .lo { color: var(--text-hint); }
+  .bo-cell-tbl { font-size: 10px; color: var(--red); }
 
   /* Person cards */
   .pcard {
@@ -198,25 +227,55 @@
     margin-left: auto; font-size: 11px; background: var(--green-light);
     color: var(--green-dark); padding: 2px 8px; border-radius: 20px; font-weight: 700;
   }
-  .dots-wrap { display: flex; gap: 4px; }
-  .daycol { text-align: center; flex: 1; }
+  .dots-wrap { display: flex; gap: 3px; flex-wrap: wrap; }
+  .daycol { text-align: center; flex: 0 0 calc(100%/14 - 3px); min-width: 0; }
   .dot {
-    width: 100%; padding: 3px 0; border-radius: 4px; font-size: 10px;
-    display: flex; align-items: center; justify-content: center; margin-bottom: 3px;
+    width: 100%; padding: 2px 0; border-radius: 3px; font-size: 9px;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 2px;
     font-weight: 500;
   }
   .dy { background: var(--green-light); color: var(--green-dark); }
   .dn { background: var(--surface2); color: var(--text-hint); }
-  .dlbl { font-size: 10px; color: var(--text-hint); }
+  .dbo { background: var(--red-light); color: var(--red); }
+  .dlbl { font-size: 9px; color: var(--text-hint); }
   .not-yet { font-size: 13px; color: var(--text-hint); font-style: italic; }
 
-  /* Week selector */
-  .week-sel-row { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; }
-  .week-sel-row select {
-    font-size: 13px; padding: 6px 10px; border-radius: var(--radius);
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--text); cursor: pointer; font-family: inherit; flex: 1;
+  /* Blackout section */
+  .bo-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden;
   }
+  .bo-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; cursor: pointer; user-select: none;
+  }
+  .bo-header:hover { background: var(--surface2); }
+  .bo-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .bo-toggle-icon { font-size: 12px; color: var(--text-hint); transition: transform .2s; }
+  .bo-toggle-icon.open { transform: rotate(180deg); }
+  .bo-body { display: none; padding: 10px; border-top: 1px solid var(--border); }
+  .bo-body.open { display: block; }
+  .bo-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  }
+  .bo-cell {
+    background: var(--surface2); border-radius: 6px; padding: 6px 4px;
+    text-align: center;
+  }
+  .bo-cell.past { opacity: 0.4; pointer-events: none; }
+  .bo-date { font-size: 10px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .bo-day { font-size: 9px; color: var(--text-hint); margin-bottom: 4px; }
+  .bo-meals { display: flex; flex-direction: column; gap: 2px; }
+  .bo-btn {
+    font-size: 10px; padding: 3px 0; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-sub); cursor: pointer;
+    font-family: inherit; transition: all .12s; width: 100%;
+  }
+  .bo-btn.blocked {
+    background: var(--red); border-color: var(--red); color: #fff; font-weight: 700;
+  }
+
+  /* Reset btn */
   .reset-btn {
     font-size: 12px; color: var(--text-hint); background: none; border: none;
     cursor: pointer; font-family: inherit; padding: 6px 10px;
@@ -348,7 +407,7 @@
       <div class="av" id="in-av"></div>
       <div>
         <div style="font-size:16px;font-weight:700;" id="in-name"></div>
-        <div style="font-size:12px;color:var(--text-sub);">来週の食事を選んでください</div>
+        <div style="font-size:12px;color:var(--text-sub);" id="in-period"></div>
       </div>
     </div>
     <div class="quick-wrap">
@@ -370,20 +429,34 @@
     <button class="back-btn" onclick="go('s-home')">← 戻る</button>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
       <h2>集計ダッシュボード</h2>
-      <button class="reset-btn" onclick="resetWeek()">🗑 リセット</button>
+      <button class="reset-btn" onclick="resetPeriod()">🗑 リセット</button>
     </div>
-    <div class="week-sel-row">
-      <select id="week-sel" onchange="onWeekChange()"></select>
+    <div class="period-nav">
+      <button class="nav-btn" onclick="shiftChefOffset(-1)">‹</button>
+      <span class="period-label" id="chef-period-label">—</span>
+      <button class="nav-btn" onclick="shiftChefOffset(1)">›</button>
     </div>
     <div class="stat-grid" id="stat-grid">
       <div class="loading" style="grid-column:1/-1;"><div class="spinner"></div>読み込み中...</div>
     </div>
     <div class="chef-actions">
-      <button class="btn-secondary" onclick="exportCSV('day')">📥 曜日別CSV</button>
+      <button class="btn-secondary" onclick="exportCSV('day')">📥 日別CSV</button>
       <button class="btn-secondary" onclick="exportCSV('person')">📥 個人別CSV</button>
     </div>
+
+    <!-- Blackout section -->
+    <div class="bo-section">
+      <div class="bo-header" onclick="toggleBoSection()">
+        <span class="bo-title">🚫 提供不可日の設定</span>
+        <span class="bo-toggle-icon" id="bo-icon">▼</span>
+      </div>
+      <div class="bo-body" id="bo-body">
+        <div class="bo-grid" id="bo-grid"></div>
+      </div>
+    </div>
+
     <div class="tab-row">
-      <button class="tab on" id="tab-s" onclick="switchTab('s')">曜日別まとめ</button>
+      <button class="tab on" id="tab-s" onclick="switchTab('s')">日別まとめ</button>
       <button class="tab" id="tab-p" onclick="switchTab('p')">個人別</button>
     </div>
     <div id="tab-s-content"></div>
@@ -394,7 +467,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getDatabase, ref, set, get, remove } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+import { getDatabase, ref, set, get, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD_fMbNMe2OQtok5Ltl37aryVLBrLRjWEU",
@@ -406,20 +479,22 @@ const firebaseConfig = {
   appId: "1:922263738558:web:2aebe7054ddaefdcc726ef"
 };
 
-const DAYS         = ['月','火','水','木','金','土','日'];
+const DAY_JA       = ['日','月','火','水','木','金','土'];
 const MEALS        = ['朝','夕'];
-const AV           = ['av0','av1','av2','av3','av4','av5'];
-const DEFAULT_USERS = ['田中','佐藤','鈴木','山田','伊藤','渡辺'];
+const AV           = ['av0','av1','av2','av3','av4','av5','av6'];
+const DEFAULT_USERS = ['下田','吉田','鈴木','小野','岸本','黒田','宇田川'];
 
 let app, db;
-let USERS    = []; // [{name, av}, ...]
-let curUser  = null;
-let curAvCls = '';
-let tmp      = {};
-let activeTab = 's';
-let WEEK     = getWeekKey(1);
-let allData  = {};
-let dc       = {}; // day counts, updated in renderChef for CSV use
+let USERS      = [];
+let curUser    = null;
+let curAvCls   = '';
+let tmp        = {};       // {dateKey: {朝:bool,夕:bool}} for current input
+let curDates   = [];       // 14 Date objects for current input period
+let allData    = {};       // {userName: {dateKey: {朝:bool,夕:bool}}}
+let blackout   = {};       // {dateKey: {朝:bool,夕:bool}} true = blocked
+let chefOffset = 0;        // period offset for chef screen
+let activeTab  = 's';
+let dc         = {};       // day counts for CSV
 
 const configOK = firebaseConfig.apiKey !== 'YOUR_API_KEY';
 
@@ -428,28 +503,54 @@ if (configOK) {
   db  = getDatabase(app);
 }
 
-// ---- Utilities ----
+// ---- Date utilities ----
 
-function getWeekKey(offset = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay() + 1 + offset * 7);
-  return d.toISOString().slice(0, 10);
+function getMonday(d) {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date;
 }
 
-function weekLabel(key) {
-  const d = new Date(key + 'T00:00:00');
-  const e = new Date(d); e.setDate(d.getDate() + 6);
-  return `${d.getMonth()+1}/${d.getDate()}（月）〜${e.getMonth()+1}/${e.getDate()}（日）`;
+function getPeriodDates(offset = 0) {
+  const mon = getMonday(new Date());
+  mon.setDate(mon.getDate() + offset * 14);
+  return Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return d;
+  });
 }
 
-function defSel() {
-  const s = {};
-  DAYS.forEach(d => { s[d] = { 朝: true, 夕: true }; });
-  return s;
+function dateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function dateLabel(d) {
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function dateLabelLong(d) {
+  return `${DAY_JA[d.getDay()]}曜日 ${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+function periodLabel(dates) {
+  const s = dates[0], e = dates[13];
+  return `${s.getMonth()+1}/${s.getDate()} 〜 ${e.getMonth()+1}/${e.getDate()}`;
+}
+
+function isPast(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return d < today;
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function toast(msg) {
@@ -464,27 +565,68 @@ function go(id) {
   if (id === 's-home') renderHome();
   if (id === 's-chef') renderChef();
 }
-
 window.go = go;
 
 // ---- Firebase helpers ----
 
-async function fbLoad(week) {
+async function fbLoadPeriod(dates) {
+  if (!configOK) return {};
+  const keys = dates.map(dateKey);
+  // Load all users' data
+  const result = {};
+  try {
+    const snap = await get(ref(db, 'meals'));
+    if (!snap.exists()) return {};
+    snap.forEach(userSnap => {
+      const uname = userSnap.key;
+      const udata = userSnap.val();
+      result[uname] = {};
+      keys.forEach(k => {
+        if (udata[k]) result[uname][k] = udata[k];
+      });
+    });
+  } catch(e) { /* ignore */ }
+  return result;
+}
+
+async function fbLoadBlackout() {
   if (!configOK) return {};
   try {
-    const snap = await get(ref(db, `meals/${week}`));
+    const snap = await get(ref(db, 'config/blackout'));
     return snap.exists() ? snap.val() : {};
   } catch(e) { return {}; }
 }
 
-async function fbSave(week, user, data) {
+async function fbSaveUserPeriod(userName, data, dates) {
   if (!configOK) return;
-  await set(ref(db, `meals/${week}/${user}`), data);
+  const updates = {};
+  dates.forEach(d => {
+    const k = dateKey(d);
+    updates[`meals/${userName}/${k}`] = data[k] || { 朝: false, 夕: false };
+  });
+  await update(ref(db), updates);
 }
 
-async function fbDelete(week) {
+async function fbToggleBlackout(dateK, meal) {
+  blackout[dateK] = blackout[dateK] || {};
+  blackout[dateK][meal] = !blackout[dateK][meal];
+  if (!blackout[dateK]['朝'] && !blackout[dateK]['夕']) {
+    delete blackout[dateK];
+    await remove(ref(db, `config/blackout/${dateK}`));
+  } else {
+    await set(ref(db, `config/blackout/${dateK}`), blackout[dateK]);
+  }
+}
+
+async function fbDeletePeriod(dates) {
   if (!configOK) return;
-  await remove(ref(db, `meals/${week}`));
+  const updates = {};
+  USERS.forEach(u => {
+    dates.forEach(d => {
+      updates[`meals/${u.name}/${dateKey(d)}`] = null;
+    });
+  });
+  await update(ref(db), updates);
 }
 
 // ---- User management (Firebase) ----
@@ -525,7 +667,7 @@ function renderUserList() {
   }
   list.innerHTML = USERS.map(u => `
     <div class="ulist-item">
-      <div class="av ${AV[u.av]}" style="width:30px;height:30px;font-size:12px;">${escHtml(u.name[0])}</div>
+      <div class="av ${AV[u.av % AV.length]}" style="width:30px;height:30px;font-size:12px;">${escHtml(u.name[0])}</div>
       <span style="font-size:14px;font-weight:500;">${escHtml(u.name)}</span>
       <button class="del-btn" data-name="${escHtml(u.name)}" onclick="deleteUserByName(this.dataset.name)">削除</button>
     </div>`).join('');
@@ -554,7 +696,7 @@ window.addUserFromModal = async function() {
   const name  = input.value.trim();
   if (!name) { toast('名前を入力してください'); return; }
   if (USERS.find(u => u.name === name)) { toast('すでに登録されています'); return; }
-  USERS.push({ name, av: USERS.length % 6 });
+  USERS.push({ name, av: USERS.length % AV.length });
   await persistUsers();
   input.value = '';
   renderUserList();
@@ -572,7 +714,8 @@ window.deleteUserByName = async function(name) {
 // ---- Home ----
 
 async function renderHome() {
-  document.getElementById('week-disp').textContent = weekLabel(WEEK);
+  const inputDates = getPeriodDates(0); // always show current 2-week period for input
+  document.getElementById('week-disp').textContent = periodLabel(inputDates);
 
   if (!configOK) {
     document.getElementById('home-grid').innerHTML = `
@@ -586,28 +729,46 @@ async function renderHome() {
 
   const grid = document.getElementById('home-grid');
   grid.innerHTML = '<div class="loading" style="grid-column:1/-1;"><div class="spinner"></div>読み込み中...</div>';
-  allData = await fbLoad(WEEK);
+  blackout = await fbLoadBlackout();
+  allData  = await fbLoadPeriod(inputDates);
   grid.innerHTML = '';
 
   USERS.forEach(u => {
-    const done = !!allData[u.name];
+    const done = !!(allData[u.name] && Object.keys(allData[u.name]).length > 0);
     const btn  = document.createElement('button');
     btn.className = 'ucard' + (done ? ' done' : '');
-    btn.innerHTML = `<div class="av ${AV[u.av]}">${escHtml(u.name[0])}</div>
+    btn.innerHTML = `<div class="av ${AV[u.av % AV.length]}">${escHtml(u.name[0])}</div>
       <span class="uname">${escHtml(u.name)}</span>
       ${done ? '<span class="done-chip">✓ 入力済</span>' : ''}`;
-    btn.onclick = () => openInput(u);
+    btn.onclick = () => openInput(u, inputDates);
     grid.appendChild(btn);
   });
 }
 
 // ---- Input ----
 
-function openInput(user) {
-  curUser  = user.name;
-  curAvCls = AV[user.av];
-  tmp = allData[user.name] ? JSON.parse(JSON.stringify(allData[user.name])) : defSel();
+function openInput(user, dates) {
+  curUser    = user.name;
+  curAvCls   = AV[user.av % AV.length];
+  curDates   = dates;
+
+  // Build tmp from existing data, defaulting unset dates to {朝:true,夕:true}
+  tmp = {};
+  dates.forEach(d => {
+    const k = dateKey(d);
+    if (allData[user.name]?.[k]) {
+      tmp[k] = { ...allData[user.name][k] };
+    } else {
+      // Default: eat unless blocked
+      tmp[k] = { 朝: !blackout[k]?.['朝'], 夕: !blackout[k]?.['夕'] };
+    }
+    // Force false for blocked meals
+    if (blackout[k]?.['朝']) tmp[k]['朝'] = false;
+    if (blackout[k]?.['夕']) tmp[k]['夕'] = false;
+  });
+
   document.getElementById('in-name').textContent = user.name + 'さん';
+  document.getElementById('in-period').textContent = periodLabel(dates);
   const av = document.getElementById('in-av');
   av.className = 'av ' + curAvCls;
   av.textContent = user.name[0];
@@ -618,152 +779,227 @@ function openInput(user) {
 function renderDayRows() {
   const wrap = document.getElementById('day-rows');
   wrap.innerHTML = '';
-  DAYS.forEach(day => {
+  curDates.forEach(d => {
+    const k    = dateKey(d);
+    const past = isPast(d);
+    const boA  = !!blackout[k]?.['朝'];
+    const boD  = !!blackout[k]?.['夕'];
+    const allBo = boA && boD;
+
     const card = document.createElement('div');
-    card.className = 'day-card';
-    const hasB    = tmp[day]?.朝, hasD = tmp[day]?.夕;
-    const sumText = [hasB?'朝食':'', hasD?'夕食':''].filter(Boolean).join('・') || 'なし';
-    card.innerHTML = `<div class="day-head">${day}曜日<span class="day-summary">${sumText}</span></div>` +
-      MEALS.map(m => {
-        const v   = tmp[day] ? tmp[day][m] : true;
-        const lbl = m === '朝' ? '朝食' : '夕食';
-        return `<div class="meal-row">
-          <span class="mlbl">${lbl}</span>
-          <div class="tg">
-            <button class="tb ${v ? 'yes' : ''}" id="b-${day}-${m}-y" onclick="setM('${day}','${m}',true)">食べる</button>
-            <button class="tb ${!v ? 'no' : ''}" id="b-${day}-${m}-n" onclick="setM('${day}','${m}',false)">食べない</button>
-          </div>
-        </div>`;
-      }).join('');
+    card.className = 'day-card' + (past ? ' past' : '') + (allBo ? ' all-blocked' : '');
+
+    const hasB    = tmp[k]?.['朝'];
+    const hasD    = tmp[k]?.['夕'];
+    const sumText = (allBo ? '提供なし' : [hasB?'朝食':'', hasD?'夕食':''].filter(Boolean).join('・') || 'なし');
+
+    let body = `<div class="day-head">${escHtml(dateLabelLong(d))}<span class="day-summary">${escHtml(sumText)}</span></div>`;
+
+    if (past) {
+      body += `<div class="past-readonly">過去の日程は変更できません</div>`;
+    } else if (allBo) {
+      body += `<div class="blocked-all-msg">🚫 この日は提供なし</div>`;
+    } else {
+      MEALS.forEach(m => {
+        const mJa  = m === '朝' ? '朝食' : '夕食';
+        const isBo = m === '朝' ? boA : boD;
+        const v    = tmp[k]?.[m] ?? false;
+        if (isBo) {
+          body += `<div class="meal-row">
+            <span class="mlbl">${mJa}</span>
+            <span class="blocked-label">🚫 提供なし</span>
+          </div>`;
+        } else {
+          body += `<div class="meal-row">
+            <span class="mlbl">${mJa}</span>
+            <div class="tg">
+              <button class="tb ${v ? 'yes' : ''}" id="b-${k}-${m}-y" onclick="setM('${k}','${m}',true)">食べる</button>
+              <button class="tb ${!v ? 'no' : ''}" id="b-${k}-${m}-n" onclick="setM('${k}','${m}',false)">食べない</button>
+            </div>
+          </div>`;
+        }
+      });
+    }
+    card.innerHTML = body;
     wrap.appendChild(card);
   });
 }
 
-window.setM = function(day, meal, val) {
-  if (!tmp[day]) tmp[day] = { 朝: true, 夕: true };
-  tmp[day][meal] = val;
-  document.getElementById(`b-${day}-${meal}-y`).className = 'tb' + (val ? ' yes' : '');
-  document.getElementById(`b-${day}-${meal}-n`).className = 'tb' + (!val ? ' no' : '');
-  const hasB    = tmp[day].朝, hasD = tmp[day].夕;
+window.setM = function(k, meal, val) {
+  if (!tmp[k]) tmp[k] = { 朝: false, 夕: false };
+  tmp[k][meal] = val;
+  document.getElementById(`b-${k}-${meal}-y`).className = 'tb' + (val ? ' yes' : '');
+  document.getElementById(`b-${k}-${meal}-n`).className = 'tb' + (!val ? ' no' : '');
+  // update summary
+  const hasB = tmp[k]['朝'], hasD = tmp[k]['夕'];
   const sumText = [hasB?'朝食':'', hasD?'夕食':''].filter(Boolean).join('・') || 'なし';
-  const head = document.querySelector(`#b-${day}-${meal}-y`)?.closest('.day-card')?.querySelector('.day-summary');
-  if (head) head.textContent = sumText;
+  const card = document.getElementById(`b-${k}-${meal}-y`)?.closest('.day-card');
+  if (card) card.querySelector('.day-summary').textContent = sumText;
 };
 
 window.qset = function(type, val) {
-  const meals = type === 'all' ? MEALS : type === 'b' ? ['朝'] : ['夕'];
-  DAYS.forEach(d => meals.forEach(m => setM(d, m, val)));
+  curDates.forEach(d => {
+    const k    = dateKey(d);
+    if (isPast(d)) return;
+    const boA  = !!blackout[k]?.['朝'];
+    const boD  = !!blackout[k]?.['夕'];
+    const meals = type === 'all' ? MEALS : type === 'b' ? ['朝'] : ['夕'];
+    meals.forEach(m => {
+      const isBo = m === '朝' ? boA : boD;
+      if (!isBo) setM(k, m, val);
+    });
+  });
 };
 
 window.saveUser = async function() {
-  await fbSave(WEEK, curUser, tmp);
-  allData[curUser] = tmp;
+  await fbSaveUserPeriod(curUser, tmp, curDates);
+  if (!allData[curUser]) allData[curUser] = {};
+  curDates.forEach(d => { allData[curUser][dateKey(d)] = tmp[dateKey(d)]; });
   toast('保存しました ✓');
   go('s-home');
 };
 
 // ---- Chef ----
 
+window.shiftChefOffset = function(delta) {
+  chefOffset += delta;
+  renderChef();
+};
+
 async function renderChef() {
-  buildWeekSel();
+  const dates = getPeriodDates(chefOffset);
+  document.getElementById('chef-period-label').textContent = periodLabel(dates);
+
   const sg = document.getElementById('stat-grid');
   sg.innerHTML = '<div class="loading" style="grid-column:1/-1;"><div class="spinner"></div>読み込み中...</div>';
 
-  allData = await fbLoad(WEEK);
+  blackout = await fbLoadBlackout();
+  allData  = await fbLoadPeriod(dates);
 
-  const responded = USERS.filter(u => allData[u.name]).length;
+  const responded = USERS.filter(u => allData[u.name] && Object.keys(allData[u.name]).length > 0).length;
   let total = 0;
   dc = {};
-  DAYS.forEach(d => { dc[d] = { 朝: 0, 夕: 0 }; });
+  dates.forEach(d => { dc[dateKey(d)] = { 朝: 0, 夕: 0 }; });
 
   USERS.forEach(u => {
     const sel = allData[u.name];
     if (!sel) return;
-    DAYS.forEach(d => {
+    dates.forEach(d => {
+      const k = dateKey(d);
       MEALS.forEach(m => {
-        if (sel[d]?.[m]) { dc[d][m]++; total++; }
+        if (sel[k]?.[m]) { dc[k][m]++; total++; }
       });
     });
   });
 
-  let maxD = { day: '-', cnt: 0 };
-  DAYS.forEach(d => {
-    const c = dc[d]['朝'] + dc[d]['夕'];
-    if (c > maxD.cnt) maxD = { day: d, cnt: c };
+  let maxD = { label: '-', cnt: 0 };
+  dates.forEach(d => {
+    const k = dateKey(d);
+    const c = (dc[k]['朝'] || 0) + (dc[k]['夕'] || 0);
+    if (c > maxD.cnt) maxD = { label: dateLabel(d), cnt: c };
   });
-  const pct = responded > 0 ? Math.round(total / (14 * responded) * 100) : 0;
+  const maxPossible = USERS.length * 14 * 2;
+  const pct = maxPossible > 0 ? Math.round(total / (responded > 0 ? responded * 14 * 2 : maxPossible) * 100) : 0;
 
   sg.innerHTML = `
     <div class="stat"><div class="stat-n">${responded}<span>/${USERS.length}</span></div><div class="stat-l">入力済み</div></div>
     <div class="stat"><div class="stat-n">${total}</div><div class="stat-l">総食数</div></div>
     <div class="stat"><div class="stat-n">${pct}%</div><div class="stat-l">参加率</div></div>
-    <div class="stat"><div class="stat-n">${maxD.day !== '-' ? maxD.day + '曜' : '-'}</div><div class="stat-l">最多曜日</div></div>`;
+    <div class="stat"><div class="stat-n">${escHtml(maxD.label)}</div><div class="stat-l">最多日</div></div>`;
 
+  renderBoGrid(dates);
+  renderChefTabs(dates);
+  switchTab(activeTab, true);
+}
+
+function renderBoGrid(dates) {
+  const grid = document.getElementById('bo-grid');
+  grid.innerHTML = dates.map(d => {
+    const k    = dateKey(d);
+    const past = isPast(d);
+    const boA  = !!blackout[k]?.['朝'];
+    const boD  = !!blackout[k]?.['夕'];
+    return `<div class="bo-cell${past ? ' past' : ''}">
+      <div class="bo-date">${d.getMonth()+1}/${d.getDate()}</div>
+      <div class="bo-day">${DAY_JA[d.getDay()]}</div>
+      <div class="bo-meals">
+        <button class="bo-btn${boA ? ' blocked' : ''}" onclick="toggleBo('${k}','朝')">朝${boA?'✕':''}</button>
+        <button class="bo-btn${boD ? ' blocked' : ''}" onclick="toggleBo('${k}','夕')">夕${boD?'✕':''}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.toggleBo = async function(k, meal) {
+  await fbToggleBlackout(k, meal);
+  const dates = getPeriodDates(chefOffset);
+  renderBoGrid(dates);
+  toast(`${k} の${meal}食を${blackout[k]?.[meal] ? '提供不可に' : '提供可に'}しました`);
+};
+
+window.toggleBoSection = function() {
+  const body = document.getElementById('bo-body');
+  const icon = document.getElementById('bo-icon');
+  const open = body.classList.toggle('open');
+  icon.classList.toggle('open', open);
+};
+
+function renderChefTabs(dates) {
   const max = USERS.length;
   const cls = n => n >= max ? 'hi' : n > 0 ? 'mid' : 'lo';
 
   document.getElementById('tab-s-content').innerHTML = `
     <table class="tbl">
-      <thead><tr><th style="width:80px;">曜日</th><th>朝食</th><th>夕食</th><th>合計</th></tr></thead>
-      <tbody>${DAYS.map(d => {
-        const b = dc[d]['朝'], di = dc[d]['夕'], tot = b + di;
-        return `<tr><td>${d}曜日</td>
-          <td class="${cls(b)}">${b}人</td>
-          <td class="${cls(di)}">${di}人</td>
+      <thead><tr><th style="width:100px;">日付</th><th>朝食</th><th>夕食</th><th>合計</th></tr></thead>
+      <tbody>${dates.map(d => {
+        const k   = dateKey(d);
+        const b   = dc[k]?.['朝'] ?? 0;
+        const di  = dc[k]?.['夕'] ?? 0;
+        const tot = b + di;
+        const boA = blackout[k]?.['朝'];
+        const boD = blackout[k]?.['夕'];
+        return `<tr>
+          <td>${DAY_JA[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}</td>
+          <td class="${boA ? '' : cls(b)}">${boA ? '<span class="bo-cell-tbl">🚫</span>' : b + '人'}</td>
+          <td class="${boD ? '' : cls(di)}">${boD ? '<span class="bo-cell-tbl">🚫</span>' : di + '人'}</td>
           <td><strong>${tot}</strong></td></tr>`;
       }).join('')}</tbody>
     </table>`;
 
   document.getElementById('tab-p-content').innerHTML = USERS.map(u => {
     const sel = allData[u.name];
-    if (!sel) return `<div class="pcard"><div class="phead">
-      <div class="av ${AV[u.av]}" style="width:30px;height:30px;font-size:11px;">${escHtml(u.name[0])}</div>
+    if (!sel || Object.keys(sel).length === 0) return `<div class="pcard"><div class="phead">
+      <div class="av ${AV[u.av % AV.length]}" style="width:30px;height:30px;font-size:11px;">${escHtml(u.name[0])}</div>
       <span class="not-yet">${escHtml(u.name)} — 未入力</span></div></div>`;
-    const cnt  = DAYS.reduce((a, d) => a + (sel[d]?.['朝'] ? 1 : 0) + (sel[d]?.['夕'] ? 1 : 0), 0);
-    const dots = DAYS.map(d => `
-      <div class="daycol">
-        <div class="dot ${sel[d]?.['朝'] ? 'dy' : 'dn'}">朝</div>
-        <div class="dot ${sel[d]?.['夕'] ? 'dy' : 'dn'}">夕</div>
-        <div class="dlbl">${d}</div>
-      </div>`).join('');
+
+    const cnt = dates.reduce((a, d) => {
+      const k = dateKey(d);
+      return a + (sel[k]?.['朝'] ? 1 : 0) + (sel[k]?.['夕'] ? 1 : 0);
+    }, 0);
+
+    const dots = dates.map(d => {
+      const k   = dateKey(d);
+      const boA = !!blackout[k]?.['朝'];
+      const boD = !!blackout[k]?.['夕'];
+      const hasB = sel[k]?.['朝'];
+      const hasD = sel[k]?.['夕'];
+      return `<div class="daycol">
+        <div class="dot ${boA ? 'dbo' : hasB ? 'dy' : 'dn'}">${boA ? '🚫' : '朝'}</div>
+        <div class="dot ${boD ? 'dbo' : hasD ? 'dy' : 'dn'}">${boD ? '🚫' : '夕'}</div>
+        <div class="dlbl">${d.getMonth()+1}/${d.getDate()}</div>
+      </div>`;
+    }).join('');
+
     return `<div class="pcard">
       <div class="phead">
-        <div class="av ${AV[u.av]}" style="width:30px;height:30px;font-size:11px;">${escHtml(u.name[0])}</div>
+        <div class="av ${AV[u.av % AV.length]}" style="width:30px;height:30px;font-size:11px;">${escHtml(u.name[0])}</div>
         <span class="pname">${escHtml(u.name)}</span>
         <span class="cnt-badge">${cnt}食</span>
       </div>
       <div class="dots-wrap">${dots}</div>
     </div>`;
   }).join('');
-
-  switchTab(activeTab, true);
 }
-
-function buildWeekSel() {
-  const sel   = document.getElementById('week-sel');
-  const weeks = new Set([getWeekKey(0), getWeekKey(1), getWeekKey(2)]);
-  Object.keys(allData).forEach(k => weeks.add(k));
-  sel.innerHTML = '';
-  Array.from(weeks).sort().reverse().forEach(w => {
-    const o = document.createElement('option');
-    o.value = w; o.textContent = weekLabel(w);
-    if (w === WEEK) o.selected = true;
-    sel.appendChild(o);
-  });
-}
-
-window.onWeekChange = function() {
-  WEEK = document.getElementById('week-sel').value;
-  renderChef();
-};
-
-window.resetWeek = async function() {
-  if (!confirm(`${weekLabel(WEEK)} のデータを全員分リセットしますか？`)) return;
-  await fbDelete(WEEK);
-  allData = {};
-  toast('リセットしました');
-  renderChef();
-};
 
 window.switchTab = function(t, silent = false) {
   activeTab = t;
@@ -773,36 +1009,47 @@ window.switchTab = function(t, silent = false) {
   document.getElementById('tab-p-content').style.display = t === 'p' ? '' : 'none';
 };
 
+window.resetPeriod = async function() {
+  const dates = getPeriodDates(chefOffset);
+  if (!confirm(`${periodLabel(dates)} のデータを全員分リセットしますか？`)) return;
+  await fbDeletePeriod(dates);
+  allData = {};
+  toast('リセットしました');
+  renderChef();
+};
+
 // ---- CSV Export ----
 
 window.exportCSV = function(type) {
+  const dates = getPeriodDates(chefOffset);
   let csv, filename;
 
   if (type === 'day') {
-    csv = '曜日,朝食人数,夕食人数,合計\n';
-    DAYS.forEach(d => {
-      const b  = dc[d]?.['朝'] ?? 0;
-      const di = dc[d]?.['夕'] ?? 0;
-      csv += `${d}曜日,${b},${di},${b + di}\n`;
+    csv = '日付,曜日,朝食人数,夕食人数,合計\n';
+    dates.forEach(d => {
+      const k  = dateKey(d);
+      const b  = dc[k]?.['朝'] ?? 0;
+      const di = dc[k]?.['夕'] ?? 0;
+      csv += `${k},${DAY_JA[d.getDay()]},${b},${di},${b + di}\n`;
     });
-    filename = `食数_曜日別_${WEEK}.csv`;
+    filename = `食数_日別_${dateKey(dates[0])}.csv`;
   } else {
-    const headers = ['名前', ...DAYS.flatMap(d => [`${d}曜朝`, `${d}曜夕`]), '総食数'];
+    const headers = ['名前', ...dates.flatMap(d => [`${dateLabel(d)}朝`, `${dateLabel(d)}夕`]), '総食数'];
     csv = headers.join(',') + '\n';
     USERS.forEach(u => {
       const sel = allData[u.name];
       if (!sel) {
-        csv += `${u.name},${Array(14).fill('-').join(',')},0\n`;
+        csv += `${u.name},${Array(28).fill('-').join(',')},0\n`;
       } else {
-        const cols = DAYS.flatMap(d => [
-          sel[d]?.['朝'] ? '○' : '×',
-          sel[d]?.['夕'] ? '○' : '×'
-        ]);
+        const cols = dates.flatMap(d => {
+          const k = dateKey(d);
+          return [sel[k]?.['朝'] ? '○' : '×', sel[k]?.['夕'] ? '○' : '×'];
+        });
         const cnt = cols.filter(v => v === '○').length;
         csv += `${u.name},${cols.join(',')},${cnt}\n`;
       }
     });
-    filename = `食数_個人別_${WEEK}.csv`;
+    filename = `食数_個人別_${dateKey(dates[0])}.csv`;
   }
 
   const bom  = '﻿';
