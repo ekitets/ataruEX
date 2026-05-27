@@ -357,6 +357,39 @@
   .empty-users {
     font-size: 13px; color: var(--text-hint); padding: 12px 0; text-align: center;
   }
+
+  /* Type toggle */
+  .type-toggle {
+    font-size: 11px; padding: 2px 8px; border-radius: 20px;
+    border: 1px solid; cursor: pointer; font-family: inherit;
+    transition: all .12s; flex-shrink: 0;
+  }
+  .type-toggle-staff    { background: #EBF3FD; color: #185FA5; border-color: rgba(24,95,165,.4); }
+  .type-toggle-staff:hover    { background: #185FA5; color: #fff; }
+  .type-toggle-jitsugyo { background: var(--green-light); color: var(--green-dark); border-color: rgba(15,110,86,.4); }
+  .type-toggle-jitsugyo:hover { background: var(--green-dark); color: #fff; }
+
+  /* Type selector (add user) */
+  .type-opt {
+    font-size: 12px; padding: 5px 14px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-sub); cursor: pointer; font-family: inherit; transition: all .12s;
+  }
+  .type-opt.on { background: var(--green); border-color: var(--green); color: #fff; font-weight: 500; }
+
+  /* Price settings */
+  .price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .price-item { background: var(--surface2); border-radius: 8px; padding: 8px 10px; }
+  .price-item-lbl { font-size: 11px; color: var(--text-sub); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .meal-tag { font-size: 10px; background: var(--surface); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
+  .price-item-row { display: flex; align-items: center; gap: 4px; }
+  .price-input {
+    flex: 1; padding: 5px 8px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 14px; font-family: inherit;
+    background: var(--bg); color: var(--text); transition: border-color .12s; width: 0;
+  }
+  .price-input:focus { outline: none; border-color: var(--green); }
+  .price-unit { font-size: 12px; color: var(--text-sub); flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -375,6 +408,10 @@
       <input type="text" id="new-user-input" placeholder="名前を入力（最大10文字）" maxlength="10"
              onkeydown="if(event.key==='Enter')addUserFromModal()">
       <button class="add-btn" onclick="addUserFromModal()">追加</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button class="type-opt on" id="type-opt-0" onclick="selectNewUserType(0)">スタッフ</button>
+      <button class="type-opt" id="type-opt-1" onclick="selectNewUserType(1)">実業団</button>
     </div>
   </div>
 </div>
@@ -444,6 +481,35 @@
       <button class="btn-secondary" onclick="exportCSV('person')">📥 個人別CSV</button>
     </div>
 
+    <!-- Price settings section -->
+    <div class="bo-section">
+      <div class="bo-header" onclick="togglePriceSection()">
+        <span class="bo-title">💰 食事料金設定</span>
+        <span class="bo-toggle-icon" id="price-icon">▼</span>
+      </div>
+      <div class="bo-body" id="price-body">
+        <div class="price-grid">
+          <div class="price-item">
+            <div class="price-item-lbl">スタッフ <span class="meal-tag">朝食</span></div>
+            <div class="price-item-row"><input type="number" id="p-staff-m" min="0" step="10" class="price-input" placeholder="0"><span class="price-unit">円</span></div>
+          </div>
+          <div class="price-item">
+            <div class="price-item-lbl">スタッフ <span class="meal-tag">夕食</span></div>
+            <div class="price-item-row"><input type="number" id="p-staff-d" min="0" step="10" class="price-input" placeholder="0"><span class="price-unit">円</span></div>
+          </div>
+          <div class="price-item">
+            <div class="price-item-lbl">実業団 <span class="meal-tag">朝食</span></div>
+            <div class="price-item-row"><input type="number" id="p-jitsu-m" min="0" step="10" class="price-input" placeholder="0"><span class="price-unit">円</span></div>
+          </div>
+          <div class="price-item">
+            <div class="price-item-lbl">実業団 <span class="meal-tag">夕食</span></div>
+            <div class="price-item-row"><input type="number" id="p-jitsu-d" min="0" step="10" class="price-input" placeholder="0"><span class="price-unit">円</span></div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="savePrices()">💾 料金を保存</button>
+      </div>
+    </div>
+
     <!-- Blackout section -->
     <div class="bo-section">
       <div class="bo-header" onclick="toggleBoSection()">
@@ -459,10 +525,12 @@
       <button class="tab on" id="tab-s" onclick="switchTab('s')">日別まとめ</button>
       <button class="tab" id="tab-p" onclick="switchTab('p')">個人別</button>
       <button class="tab" id="tab-l" onclick="switchTab('l')">保存ログ</button>
+      <button class="tab" id="tab-b" onclick="switchTab('b')">月別請求</button>
     </div>
     <div id="tab-s-content"></div>
     <div id="tab-p-content" style="display:none;"></div>
     <div id="tab-l-content" style="display:none;"></div>
+    <div id="tab-b-content" style="display:none;"></div>
   </div>
 
 </div>
@@ -485,6 +553,8 @@ const DAY_JA       = ['日','月','火','水','木','金','土'];
 const MEALS        = ['朝','夕'];
 const AV           = ['av0','av1','av2','av3','av4','av5','av6'];
 const DEFAULT_USERS = ['下田','吉田','鈴木','小野','岸本','黒田','宇田川'];
+const TYPES        = ['スタッフ', '実業団'];
+const DEFAULT_PRICES = { 'スタッフ': { '朝': 0, '夕': 0 }, '実業団': { '朝': 0, '夕': 0 } };
 
 let app, db;
 let USERS      = [];
@@ -497,6 +567,9 @@ let blackout   = {};       // {dateKey: {朝:bool,夕:bool}} true = blocked
 let chefOffset = 0;        // period offset for chef screen
 let activeTab  = 's';
 let dc         = {};       // day counts for CSV
+let prices     = JSON.parse(JSON.stringify(DEFAULT_PRICES));
+let billingMonthOffset = 0;
+let newUserTypeIdx = 0;    // 0=スタッフ, 1=実業団
 
 const configOK = firebaseConfig.apiKey !== 'YOUR_API_KEY';
 
@@ -657,6 +730,45 @@ async function fbSaveLog(userName, type, weekStart, mealData) {
   await set(ref(db, `logs/${userName}/${ts}`), { type, weekStart, savedAt: now, meals: mealData });
 }
 
+async function fbLoadPrices() {
+  if (!configOK) return JSON.parse(JSON.stringify(DEFAULT_PRICES));
+  try {
+    const snap = await get(ref(db, 'config/prices'));
+    if (!snap.exists()) return JSON.parse(JSON.stringify(DEFAULT_PRICES));
+    const d = snap.val();
+    return {
+      'スタッフ': { '朝': d.staff_m ?? 0, '夕': d.staff_d ?? 0 },
+      '実業団':  { '朝': d.jitsu_m ?? 0, '夕': d.jitsu_d ?? 0 }
+    };
+  } catch(e) { return JSON.parse(JSON.stringify(DEFAULT_PRICES)); }
+}
+
+async function fbSavePrices(p) {
+  if (!configOK) return;
+  await set(ref(db, 'config/prices'), {
+    staff_m: p['スタッフ']['朝'], staff_d: p['スタッフ']['夕'],
+    jitsu_m: p['実業団']['朝'],  jitsu_d: p['実業団']['夕']
+  });
+}
+
+async function fbLoadMonthData(year, month) {
+  if (!configOK) return {};
+  const prefix = `${year}-${String(month).padStart(2,'0')}-`;
+  const result = {};
+  try {
+    const snap = await get(ref(db, 'meals'));
+    if (!snap.exists()) return {};
+    snap.forEach(userSnap => {
+      const uname = userSnap.key;
+      const udata = userSnap.val();
+      const um = {};
+      Object.entries(udata).forEach(([k, v]) => { if (k.startsWith(prefix)) um[k] = v; });
+      if (Object.keys(um).length > 0) result[uname] = um;
+    });
+  } catch(e) {}
+  return result;
+}
+
 async function fbLoadLogs() {
   if (!configOK) return {};
   try {
@@ -669,27 +781,31 @@ async function fbLoadLogs() {
 
 async function loadUsers() {
   if (!configOK) {
-    USERS = DEFAULT_USERS.map((n, i) => ({ name: n, av: i }));
+    USERS = DEFAULT_USERS.map((n, i) => ({ name: n, av: i, type: 'スタッフ' }));
     return;
   }
   try {
     const snap = await get(ref(db, 'config/users'));
     if (snap.exists()) {
       const data = snap.val();
-      USERS = Object.entries(data).map(([name, av]) => ({ name, av }));
+      USERS = Object.entries(data).map(([name, val]) => ({
+        name,
+        av:   typeof val === 'number' ? val : (val?.av ?? 0),
+        type: typeof val === 'object' && val?.type ? val.type : 'スタッフ'
+      }));
     } else {
-      USERS = DEFAULT_USERS.map((n, i) => ({ name: n, av: i }));
+      USERS = DEFAULT_USERS.map((n, i) => ({ name: n, av: i, type: 'スタッフ' }));
       await persistUsers();
     }
   } catch(e) {
-    USERS = DEFAULT_USERS.map((n, i) => ({ name: n, av: i }));
+    USERS = DEFAULT_USERS.map((n, i) => ({ name: n, av: i, type: 'スタッフ' }));
   }
 }
 
 async function persistUsers() {
   if (!configOK) return;
   const obj = {};
-  USERS.forEach(u => { obj[u.name] = u.av; });
+  USERS.forEach(u => { obj[u.name] = { av: u.av, type: u.type || 'スタッフ' }; });
   await set(ref(db, 'config/users'), obj);
 }
 
@@ -701,12 +817,17 @@ function renderUserList() {
     list.innerHTML = '<p class="empty-users">ユーザーがいません</p>';
     return;
   }
-  list.innerHTML = USERS.map(u => `
+  list.innerHTML = USERS.map(u => {
+    const tc = (u.type === '実業団') ? 'jitsugyo' : 'staff';
+    return `
     <div class="ulist-item">
       <div class="av ${AV[u.av % AV.length]}" style="width:30px;height:30px;font-size:12px;">${escHtml(u.name[0])}</div>
       <span style="font-size:14px;font-weight:500;">${escHtml(u.name)}</span>
+      <button class="type-toggle type-toggle-${tc}" data-name="${escHtml(u.name)}"
+              onclick="toggleUserType(this.dataset.name)">${escHtml(u.type||'スタッフ')}</button>
       <button class="del-btn" data-name="${escHtml(u.name)}" onclick="deleteUserByName(this.dataset.name)">削除</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function openUserModal() {
@@ -727,14 +848,32 @@ document.getElementById('user-modal').addEventListener('click', function(e) {
   if (e.target === this) closeUserModal();
 });
 
+window.toggleUserType = async function(name) {
+  const u = USERS.find(u => u.name === name);
+  if (!u) return;
+  u.type = u.type === '実業団' ? 'スタッフ' : '実業団';
+  await persistUsers();
+  renderUserList();
+  toast(`${name} を${u.type}に変更しました`);
+};
+
+window.selectNewUserType = function(idx) {
+  newUserTypeIdx = idx;
+  [0, 1].forEach(i => {
+    document.getElementById(`type-opt-${i}`).className = 'type-opt' + (i === idx ? ' on' : '');
+  });
+};
+
 window.addUserFromModal = async function() {
   const input = document.getElementById('new-user-input');
   const name  = input.value.trim();
   if (!name) { toast('名前を入力してください'); return; }
   if (USERS.find(u => u.name === name)) { toast('すでに登録されています'); return; }
-  USERS.push({ name, av: USERS.length % AV.length });
+  USERS.push({ name, av: USERS.length % AV.length, type: TYPES[newUserTypeIdx] });
   await persistUsers();
   input.value = '';
+  newUserTypeIdx = 0;
+  selectNewUserType(0);
   renderUserList();
   toast(`${name} を追加しました ✓`);
 };
@@ -908,6 +1047,7 @@ async function renderChef() {
 
   blackout = await fbLoadBlackout();
   allData  = await fbLoadPeriod(dates);
+  prices   = await fbLoadPrices();
   const logs = await fbLoadLogs();
 
   const responded = USERS.filter(u => allData[u.name] && Object.keys(allData[u.name]).length > 0).length;
@@ -940,10 +1080,12 @@ async function renderChef() {
     <div class="stat"><div class="stat-n">${pct}%</div><div class="stat-l">参加率</div></div>
     <div class="stat"><div class="stat-n">${escHtml(maxD.label)}</div><div class="stat-l">最多日</div></div>`;
 
+  setPriceInputs();
   renderBoGrid(dates);
   renderChefTabs(dates);
   renderLogTab(logs);
   switchTab(activeTab, true);
+  if (activeTab === 'b') renderBillingTab();
 }
 
 function renderBoGrid(dates) {
@@ -1098,11 +1240,120 @@ function renderLogTab(logs) {
 
 window.switchTab = function(t, silent = false) {
   activeTab = t;
-  ['s','p','l'].forEach(id => {
+  ['s','p','l','b'].forEach(id => {
     document.getElementById(`tab-${id}`).className = 'tab' + (t === id ? ' on' : '');
     document.getElementById(`tab-${id}-content`).style.display = t === id ? '' : 'none';
   });
+  if (t === 'b' && !silent) renderBillingTab();
 };
+
+window.togglePriceSection = function() {
+  const body = document.getElementById('price-body');
+  const icon = document.getElementById('price-icon');
+  icon.classList.toggle('open', body.classList.toggle('open'));
+};
+
+function setPriceInputs() {
+  document.getElementById('p-staff-m').value = prices['スタッフ']['朝'] || '';
+  document.getElementById('p-staff-d').value = prices['スタッフ']['夕'] || '';
+  document.getElementById('p-jitsu-m').value = prices['実業団']['朝'] || '';
+  document.getElementById('p-jitsu-d').value = prices['実業団']['夕'] || '';
+}
+
+window.savePrices = async function() {
+  prices = {
+    'スタッフ': { '朝': parseInt(document.getElementById('p-staff-m').value) || 0,
+                  '夕': parseInt(document.getElementById('p-staff-d').value) || 0 },
+    '実業団':  { '朝': parseInt(document.getElementById('p-jitsu-m').value) || 0,
+                  '夕': parseInt(document.getElementById('p-jitsu-d').value) || 0 }
+  };
+  await fbSavePrices(prices);
+  toast('料金を保存しました ✓');
+};
+
+window.shiftBillingMonth = function(delta) {
+  billingMonthOffset += delta;
+  renderBillingTab();
+};
+
+async function renderBillingTab() {
+  const content = document.getElementById('tab-b-content');
+  const now = new Date();
+  now.setDate(1);
+  now.setMonth(now.getMonth() + billingMonthOffset);
+  const year = now.getFullYear(), month = now.getMonth() + 1;
+  const monthLabel = `${year}年${month}月`;
+
+  const navBar = `<div style="display:flex;align-items:center;justify-content:space-between;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:8px 12px;margin-bottom:1rem;">
+    <button class="nav-btn" onclick="shiftBillingMonth(-1)">‹</button>
+    <span style="font-size:13px;font-weight:700;">${monthLabel}</span>
+    <button class="nav-btn" onclick="shiftBillingMonth(1)">›</button>
+  </div>`;
+
+  content.innerHTML = navBar + '<div class="loading"><div class="spinner"></div>読み込み中...</div>';
+
+  const monthData = await fbLoadMonthData(year, month);
+  const priceConfigured = TYPES.some(t => MEALS.some(m => (prices[t]?.[m] ?? 0) > 0));
+
+  let grandTotal = 0, totalMorning = 0, totalDinner = 0;
+
+  const rows = USERS.map(u => {
+    const sel = monthData[u.name] || {};
+    let morning = 0, dinner = 0;
+    Object.values(sel).forEach(v => { if (v['朝']) morning++; if (v['夕']) dinner++; });
+    const t = u.type || 'スタッフ';
+    const pM = prices[t]?.['朝'] ?? 0;
+    const pD = prices[t]?.['夕'] ?? 0;
+    const total = morning * pM + dinner * pD;
+    totalMorning += morning; totalDinner += dinner; grandTotal += total;
+    return { u, morning, dinner, total, t };
+  });
+
+  const warn = !priceConfigured
+    ? `<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:var(--radius);
+        padding:10px 14px;margin-bottom:1rem;font-size:12px;color:#92400e;">
+        ⚠️ 料金未設定です。「食事料金設定」から設定してください。</div>` : '';
+
+  const statsHtml = `<div class="stat-grid" style="margin-bottom:1rem;">
+    <div class="stat"><div class="stat-n">${totalMorning}</div><div class="stat-l">朝食 合計</div></div>
+    <div class="stat"><div class="stat-n">${totalDinner}</div><div class="stat-l">夕食 合計</div></div>
+    <div class="stat" style="grid-column:1/-1;">
+      <div class="stat-n">${grandTotal.toLocaleString()}<span>円</span></div>
+      <div class="stat-l">総請求額</div>
+    </div>
+  </div>`;
+
+  const tableHtml = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+    <table class="tbl">
+      <thead><tr>
+        <th style="text-align:left;">名前</th><th>属性</th><th>朝食</th><th>夕食</th><th>請求額</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(({u, morning, dinner, total, t}) => {
+          const tc = t === '実業団' ? '#0F6E56' : '#185FA5';
+          const tb = t === '実業団' ? 'var(--green-light)' : '#EBF3FD';
+          return `<tr>
+            <td style="text-align:left;">${escHtml(u.name)}</td>
+            <td><span style="font-size:10px;padding:2px 6px;border-radius:10px;background:${tb};color:${tc};">${escHtml(t)}</span></td>
+            <td>${morning}回</td>
+            <td>${dinner}回</td>
+            <td style="font-weight:700;">${total.toLocaleString()}円</td>
+          </tr>`;
+        }).join('')}
+        <tr style="border-top:2px solid var(--border);">
+          <td style="text-align:left;font-weight:700;">合計</td><td></td>
+          <td style="font-weight:700;">${totalMorning}回</td>
+          <td style="font-weight:700;">${totalDinner}回</td>
+          <td style="font-weight:700;color:var(--green-dark);">${grandTotal.toLocaleString()}円</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+
+  content.innerHTML = navBar + warn + statsHtml + tableHtml;
+}
 
 window.resetPeriod = async function() {
   const dates = getPeriodDates(chefOffset);
