@@ -458,9 +458,11 @@
     <div class="tab-row">
       <button class="tab on" id="tab-s" onclick="switchTab('s')">日別まとめ</button>
       <button class="tab" id="tab-p" onclick="switchTab('p')">個人別</button>
+      <button class="tab" id="tab-l" onclick="switchTab('l')">保存ログ</button>
     </div>
     <div id="tab-s-content"></div>
     <div id="tab-p-content" style="display:none;"></div>
+    <div id="tab-l-content" style="display:none;"></div>
   </div>
 
 </div>
@@ -646,6 +648,21 @@ async function fbDeletePeriod(dates) {
     });
   });
   await update(ref(db), updates);
+}
+
+async function fbSaveLog(userName, type, weekStart) {
+  if (!configOK) return;
+  const ts  = Date.now();
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  await set(ref(db, `logs/${userName}/${ts}`), { type, weekStart, savedAt: now });
+}
+
+async function fbLoadLogs() {
+  if (!configOK) return {};
+  try {
+    const snap = await get(ref(db, 'logs'));
+    return snap.exists() ? snap.val() : {};
+  } catch(e) { return {}; }
 }
 
 // ---- User management (Firebase) ----
@@ -865,10 +882,13 @@ window.qset = function(type, val) {
 };
 
 window.saveUser = async function() {
+  const hasExisting = curDates.some(d => allData[curUser]?.[dateKey(d)] !== undefined);
+  const logType = hasExisting ? 'update' : 'initial';
   await fbSaveUserPeriod(curUser, tmp, curDates);
+  await fbSaveLog(curUser, logType, dateKey(curDates[0]));
   if (!allData[curUser]) allData[curUser] = {};
   curDates.forEach(d => { allData[curUser][dateKey(d)] = tmp[dateKey(d)]; });
-  toast('保存しました ✓');
+  toast(logType === 'initial' ? '初回保存しました ✓' : '更新しました ✓');
   go('s-home');
 };
 
@@ -888,6 +908,7 @@ async function renderChef() {
 
   blackout = await fbLoadBlackout();
   allData  = await fbLoadPeriod(dates);
+  const logs = await fbLoadLogs();
 
   const responded = USERS.filter(u => allData[u.name] && Object.keys(allData[u.name]).length > 0).length;
   let total = 0;
@@ -921,6 +942,7 @@ async function renderChef() {
 
   renderBoGrid(dates);
   renderChefTabs(dates);
+  renderLogTab(logs);
   switchTab(activeTab, true);
 }
 
@@ -1013,12 +1035,48 @@ function renderChefTabs(dates) {
   }).join('');
 }
 
+function renderLogTab(logs) {
+  const entries = [];
+  Object.entries(logs).forEach(([userName, userLogs]) => {
+    Object.entries(userLogs).forEach(([ts, entry]) => {
+      entries.push({ userName, ts: parseInt(ts), ...entry });
+    });
+  });
+  entries.sort((a, b) => b.ts - a.ts);
+  const recent = entries.slice(0, 100);
+
+  if (recent.length === 0) {
+    document.getElementById('tab-l-content').innerHTML =
+      '<div style="padding:1.5rem;text-align:center;font-size:13px;color:var(--text-hint);">保存ログはまだありません</div>';
+    return;
+  }
+
+  document.getElementById('tab-l-content').innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">' +
+    recent.map((e, i) => {
+      const u       = USERS.find(u => u.name === e.userName);
+      const avCls   = u ? AV[u.av % AV.length] : 'av0';
+      const isFirst = e.type === 'initial';
+      const badge   = isFirst
+        ? '<span style="font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;background:var(--green-light);color:var(--green-dark);">初回保存</span>'
+        : '<span style="font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;background:#EBF3FD;color:#185FA5;">更新</span>';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;${i > 0 ? 'border-top:1px solid var(--border);' : ''}">
+        <div class="av ${avCls}" style="width:30px;height:30px;font-size:12px;flex-shrink:0;">${escHtml(e.userName[0])}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;">${escHtml(e.userName)}</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:1px;">${e.savedAt} &nbsp;·&nbsp; ${e.weekStart}〜の週</div>
+        </div>
+        ${badge}
+      </div>`;
+    }).join('') + '</div>';
+}
+
 window.switchTab = function(t, silent = false) {
   activeTab = t;
-  document.getElementById('tab-s').className = 'tab' + (t === 's' ? ' on' : '');
-  document.getElementById('tab-p').className = 'tab' + (t === 'p' ? ' on' : '');
-  document.getElementById('tab-s-content').style.display = t === 's' ? '' : 'none';
-  document.getElementById('tab-p-content').style.display = t === 'p' ? '' : 'none';
+  ['s','p','l'].forEach(id => {
+    document.getElementById(`tab-${id}`).className = 'tab' + (t === id ? ' on' : '');
+    document.getElementById(`tab-${id}-content`).style.display = t === id ? '' : 'none';
+  });
 };
 
 window.resetPeriod = async function() {
