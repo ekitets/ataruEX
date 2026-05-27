@@ -650,11 +650,11 @@ async function fbDeletePeriod(dates) {
   await update(ref(db), updates);
 }
 
-async function fbSaveLog(userName, type, weekStart) {
+async function fbSaveLog(userName, type, weekStart, mealData) {
   if (!configOK) return;
   const ts  = Date.now();
   const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  await set(ref(db, `logs/${userName}/${ts}`), { type, weekStart, savedAt: now });
+  await set(ref(db, `logs/${userName}/${ts}`), { type, weekStart, savedAt: now, meals: mealData });
 }
 
 async function fbLoadLogs() {
@@ -885,7 +885,7 @@ window.saveUser = async function() {
   const hasExisting = curDates.some(d => allData[curUser]?.[dateKey(d)] !== undefined);
   const logType = hasExisting ? 'update' : 'initial';
   await fbSaveUserPeriod(curUser, tmp, curDates);
-  await fbSaveLog(curUser, logType, dateKey(curDates[0]));
+  await fbSaveLog(curUser, logType, dateKey(curDates[0]), tmp);
   if (!allData[curUser]) allData[curUser] = {};
   curDates.forEach(d => { allData[curUser][dateKey(d)] = tmp[dateKey(d)]; });
   toast(logType === 'initial' ? '初回保存しました ✓' : '更新しました ✓');
@@ -1060,13 +1060,38 @@ function renderLogTab(logs) {
       const badge   = isFirst
         ? '<span style="font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;background:var(--green-light);color:var(--green-dark);">初回保存</span>'
         : '<span style="font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;background:#EBF3FD;color:#185FA5;">更新</span>';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;${i > 0 ? 'border-top:1px solid var(--border);' : ''}">
-        <div class="av ${avCls}" style="width:30px;height:30px;font-size:12px;flex-shrink:0;">${escHtml(e.userName[0])}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:500;">${escHtml(e.userName)}</div>
-          <div style="font-size:11px;color:var(--text-hint);margin-top:1px;">${e.savedAt} &nbsp;·&nbsp; ${e.weekStart}〜の週</div>
+
+      let mealsHtml = '';
+      if (e.meals) {
+        const startDate = new Date(e.weekStart + 'T00:00:00');
+        const weekDates = Array.from({length: 7}, (_, idx) => {
+          const d = new Date(startDate);
+          d.setDate(startDate.getDate() + idx);
+          return d;
+        });
+        const dots = weekDates.map(d => {
+          const k    = dateKey(d);
+          const hasB = e.meals[k]?.['朝'];
+          const hasD = e.meals[k]?.['夕'];
+          return `<div class="daycol">
+            <div class="dot ${hasB ? 'dy' : 'dn'}">朝</div>
+            <div class="dot ${hasD ? 'dy' : 'dn'}">夕</div>
+            <div class="dlbl">${d.getMonth()+1}/${d.getDate()}</div>
+          </div>`;
+        }).join('');
+        mealsHtml = `<div class="dots-wrap" style="margin-top:8px;">${dots}</div>`;
+      }
+
+      return `<div style="padding:10px 14px;${i > 0 ? 'border-top:1px solid var(--border);' : ''}">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="av ${avCls}" style="width:30px;height:30px;font-size:12px;flex-shrink:0;">${escHtml(e.userName[0])}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:500;">${escHtml(e.userName)}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:1px;">${e.savedAt} &nbsp;·&nbsp; ${e.weekStart}〜の週</div>
+          </div>
+          ${badge}
         </div>
-        ${badge}
+        ${mealsHtml}
       </div>`;
     }).join('') + '</div>';
 }
